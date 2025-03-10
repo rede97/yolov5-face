@@ -116,8 +116,11 @@ class LandmarksLoss(nn.Module):
 def compute_loss(p, targets, model):  # predictions, targets, model
     device = targets.device
     lcls, lbox, lobj, lmark = torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device)
+    tobj = torch.zeros_like(p[0][..., 0], device=device)  # initialize tobj early
     tcls, tbox, indices, anchors, tlandmarks, lmks_mask = build_targets(p, targets, model)  # targets
     h = model.hyp  # hyperparameters
+    if not hasattr(model, 'gr') or model.gr is None:
+        model.gr = 1.0  # default gradient reversal value
 
     # Define criteria
     BCEcls = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['cls_pw']], device=device))  # weight=model.class_weights)
@@ -151,10 +154,13 @@ def compute_loss(p, targets, model):  # predictions, targets, model
             pwh = (ps[:, 2:4].sigmoid() * 2) ** 2 * anchors[i]
             pbox = torch.cat((pxy, pwh), 1)  # predicted box
             iou = bbox_iou(pbox.T, tbox[i], x1y1x2y2=False, CIoU=True)  # iou(prediction, target)
-            lbox += (1.0 - iou).mean()  # iou loss
+            if iou is not None:
+                lbox += (1.0 - iou).mean()  # iou loss
 
-            # Objectness
-            tobj[b, a, gj, gi] = (1.0 - model.gr) + model.gr * iou.detach().clamp(0).type(tobj.dtype)  # iou ratio
+                # Objectness
+                if model.gr is None:
+                    model.gr = 1.0
+                tobj[b, a, gj, gi] = (1.0 - model.gr) + model.gr * iou.detach().clamp(0).type(tobj.dtype)  # iou ratio
 
             # Classification
             if model.nc > 1:  # cls loss (only if multiple classes)
@@ -199,7 +205,7 @@ def build_targets(p, targets, model):
     na, nt = det.na, targets.shape[0]  # number of anchors, targets
     tcls, tbox, indices, anch, landmarks, lmks_mask = [], [], [], [], [], []
     #gain = torch.ones(7, device=targets.device)  # normalized to gridspace gain
-    gain = torch.ones(17, device=targets.device)
+    gain = torch.ones(17, device=targets.device).long()
     ai = torch.arange(na, device=targets.device).float().view(na, 1).repeat(1, nt)  # same as .repeat_interleave(nt)
     targets = torch.cat((targets.repeat(na, 1, 1), ai[:, :, None]), 2)  # append anchor indices
 
