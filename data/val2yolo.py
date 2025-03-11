@@ -56,6 +56,8 @@ if __name__ == '__main__':
                         help='Path to original WIDERFACE validation folder')
     parser.add_argument('save_path', type=str, nargs='?', default='widerface/val',
                         help='Path to save converted YOLO format data (default: widerface/val)')
+    parser.add_argument('-s', '--symlink', action='store_true',
+                        help='Use symlinks instead of copying files')
     args = parser.parse_args()
 
     root_path = Path(args.root_path)
@@ -73,12 +75,17 @@ if __name__ == '__main__':
     labels_path.mkdir(parents=True, exist_ok=True)
 
     datas = wider2face(label_file)
-    for idx, data in enumerate(datas.keys()):
-        pict_name = os.path.basename(data)
+    for idx, img_path in enumerate(datas.keys()):
+        pict_name = os.path.basename(img_path)
         out_img = images_path / f'{idx}.jpg'
         out_txt = labels_path / f'{idx}.txt'
-        shutil.copyfile(data, out_img)
-        labels = datas[data]
+        if args.symlink:
+            if os.path.exists(out_img):
+                os.remove(out_img)
+            os.symlink(img_path, out_img)
+        else:
+            shutil.copyfile(img_path, out_img)
+        labels = datas[img_path]
         f = open(out_txt, 'w')
         for label in labels:
             f.write(label + '\n')

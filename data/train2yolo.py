@@ -1,4 +1,5 @@
-import os.path
+import os
+import shutil
 import argparse
 import torch.utils.data as data
 import cv2
@@ -42,6 +43,8 @@ if __name__ == '__main__':
                         help='Path to original WIDERFACE train folder')
     parser.add_argument('save_path', type=str, nargs='?', default='widerface/train',
                         help='Path to save converted YOLO format data (default: widerface/train)')
+    parser.add_argument('-s', '--symlink', action='store_true',
+                        help='Use symlinks instead of copying files')
     args = parser.parse_args()
 
     original_path = Path(args.original_path)
@@ -104,4 +107,10 @@ if __name__ == '__main__':
                 str_label = str_label.replace('[', '').replace(']', '')
                 str_label = str_label.replace(',', '') + '\n'
                 f.write(str_label)
-        cv2.imwrite(str(save_img_path), img)
+        # cv2.imwrite(str(save_img_path), img_path)
+        if args.symlink:
+            if os.path.exists(save_img_path):
+                os.remove(save_img_path)
+            os.symlink(img_path, save_img_path)
+        else:
+            shutil.copyfile(img_path, save_img_path)
