@@ -1,12 +1,10 @@
 import os.path
-import sys
+import argparse
 import torch.utils.data as data
 import cv2
 import numpy as np
 from pathlib import Path
 from tqdm import tqdm
-
-HELP_INFO = 'Run command: python3 train2yolo.py /path/to/original/widerface/train [/path/to/save/widerface/train]'
 
 class WiderFaceDetection(data.Dataset):
     def __init__(self, txt_path: Path, preproc=None):
@@ -39,29 +37,20 @@ class WiderFaceDetection(data.Dataset):
         return len(self.imgs_path)
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        print('Missing path to WIDERFACE train folder.')
-        print(HELP_INFO)
-        exit(1)
-    elif len(sys.argv) > 3:
-        print('Too many arguments were provided.')
-        print(HELP_INFO)
-        exit(1)
-    original_path = Path(sys.argv[1])
+    parser = argparse.ArgumentParser(description='Convert WIDERFACE dataset to YOLO format')
+    parser.add_argument('original_path', type=str, 
+                        help='Path to original WIDERFACE train folder')
+    parser.add_argument('save_path', type=str, nargs='?', default='widerface/train',
+                        help='Path to save converted YOLO format data (default: widerface/train)')
+    args = parser.parse_args()
+
+    original_path = Path(args.original_path)
     label_file = original_path / "label.txt"
     if not label_file.exists():
-        print('Missing label.txt file.', label_file)
+        print(f'Missing label.txt file: {label_file}')
         exit(1)
 
-    if len(sys.argv) == 2:
-        if not os.path.isdir('widerface'):
-            os.mkdir('widerface')
-        if not os.path.isdir('widerface/train'):
-            os.mkdir('widerface/train')
-
-        save_path = Path('widerface/train')
-    else:
-        save_path = Path(sys.argv[2])
+    save_path = Path(args.save_path)
 
     save_path.mkdir(parents=True, exist_ok=True)
     images_path = save_path.joinpath("images")

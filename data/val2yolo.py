@@ -2,11 +2,9 @@ import os
 import cv2
 import numpy as np
 import shutil
-import sys
+import argparse
 from tqdm import tqdm
 from pathlib import Path
-
-HELP_INFO = "Run command: python3 val2yolo.py /path/to/original/widerface/val [/path/to/save/widerface/val]"
 
 def xywh2xxyy(box):
     x1 = box[0]
@@ -53,25 +51,20 @@ def wider2face(label_path: Path, ignore_small=0):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        print('Missing path to WIDERFACE folder.')
-        print(HELP_INFO)
-        exit(1)
-    elif len(sys.argv) > 3:
-        print('Too many arguments were provided.')
-        print(HELP_INFO)
-        exit(1)
+    parser = argparse.ArgumentParser(description='Convert WIDERFACE validation dataset to YOLO format')
+    parser.add_argument('root_path', type=str,
+                        help='Path to original WIDERFACE validation folder')
+    parser.add_argument('save_path', type=str, nargs='?', default='widerface/val',
+                        help='Path to save converted YOLO format data (default: widerface/val)')
+    args = parser.parse_args()
 
-    root_path = Path(sys.argv[1])
+    root_path = Path(args.root_path)
     label_file = root_path / "label.txt"
     if not label_file.exists():
-        print('Missing label.txt file.')
+        print(f'Missing label.txt file: {label_file}')
         exit(1)
 
-    if len(sys.argv) == 2:
-        save_path = Path('widerface/val')
-    else:
-        save_path = Path(sys.argv[2])
+    save_path = Path(args.save_path)
 
     save_path.mkdir(parents=True, exist_ok=True)
     images_path = save_path.joinpath("images")
