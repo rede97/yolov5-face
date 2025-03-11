@@ -3,4 +3,6 @@ widerface
 *.log
 runs/
 wandb/
+widerface_txt/
 *.pyc
+weights/*

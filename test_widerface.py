@@ -112,7 +112,7 @@ def detect(model, img0):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default='runs/train/exp5/weights/last.pt', help='model.pt path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='runs/train/exp10/weights/last.pt', help='model.pt path(s)')
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.02, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.5, help='IOU threshold for NMS')
@@ -126,13 +126,12 @@ if __name__ == '__main__':
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--save_folder', default='./widerface_evaluate/widerface_txt/', type=str, help='Dir to save txt results')
     parser.add_argument('--dataset_folder', default='../WiderFace/val/images/', type=str, help='dataset path')
-    parser.add_argument('--folder_pict', default='/yolov5-face/data/widerface/val/wider_val.txt', type=str, help='folder_pict')
     opt = parser.parse_args()
     print(opt)
 
     # changhy : read folder_pict
     pict_folder = {}
-    with open(opt.folder_pict, 'r') as f:
+    with open("data/wider_val.txt", 'r') as f:
         lines = f.readlines()
         for line in lines:
             line = line.strip().split('/')
@@ -145,19 +144,20 @@ if __name__ == '__main__':
         # testing dataset
         testset_folder = opt.dataset_folder
 
-        for image_path in tqdm(glob.glob(os.path.join(testset_folder, '*'))):
-            if image_path.endswith('.txt'):
+        for image_path in tqdm(glob.glob(os.path.join(testset_folder, '**/*.jpg'))):
+            image_name = os.path.basename(image_path)
+            pict_folder_name = pict_folder.get(image_name, None)
+            if pict_folder_name is None:
                 continue
+            txt_name = os.path.splitext(image_name)[0] + ".txt"
+            save_name = os.path.join(opt.save_folder, pict_folder[image_name], txt_name)
+            dirname = os.path.dirname(save_name)
+            # --------------------------------------------------------------------
             img0 = cv2.imread(image_path)  # BGR
             if img0 is None:
                 print(f'ignore : {image_path}')
                 continue
             boxes = detect(model, img0)
-            # --------------------------------------------------------------------
-            image_name = os.path.basename(image_path)
-            txt_name = os.path.splitext(image_name)[0] + ".txt"
-            save_name = os.path.join(opt.save_folder, pict_folder[image_name], txt_name)
-            dirname = os.path.dirname(save_name)
             if not os.path.isdir(dirname):
                 os.makedirs(dirname)
             with open(save_name, "w") as fd:
