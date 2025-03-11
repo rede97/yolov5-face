@@ -4,7 +4,9 @@ import numpy as np
 import shutil
 import sys
 from tqdm import tqdm
+from pathlib import Path
 
+HELP_INFO = "Run command: python3 val2yolo.py /path/to/original/widerface/val [/path/to/save/widerface/val]"
 
 def xywh2xxyy(box):
     x1 = box[0]
@@ -28,14 +30,14 @@ def convert(size, box):
     return x, y, w, h
 
 
-def wider2face(root, phase='val', ignore_small=0):
+def wider2face(label_path: Path, ignore_small=0):
     data = {}
-    with open('{}/{}/label.txt'.format(root, phase), 'r') as f:
+    with open(label_path, 'r') as f:
         lines = f.readlines()
         for line in tqdm(lines):
             line = line.strip()
             if '#' in line:
-                path = '{}/{}/images/{}'.format(root, phase, line.split()[-1])
+                path = str(label_path.with_name("images").joinpath(line.split()[-1]).resolve())
                 img = cv2.imread(path)
                 height, width, _ = img.shape
                 data[path] = list()
@@ -53,33 +55,35 @@ def wider2face(root, phase='val', ignore_small=0):
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         print('Missing path to WIDERFACE folder.')
-        print('Run command: python3 val2yolo.py /path/to/original/widerface [/path/to/save/widerface/val]')
+        print(HELP_INFO)
         exit(1)
     elif len(sys.argv) > 3:
         print('Too many arguments were provided.')
-        print('Run command: python3 val2yolo.py /path/to/original/widerface [/path/to/save/widerface/val]')
+        print(HELP_INFO)
         exit(1)
 
-    root_path = sys.argv[1]
-    if not os.path.isfile(os.path.join(root_path, 'val', 'label.txt')):
+    root_path = Path(sys.argv[1])
+    label_file = root_path / "label.txt"
+    if not label_file.exists():
         print('Missing label.txt file.')
         exit(1)
 
     if len(sys.argv) == 2:
-        if not os.path.isdir('widerface'):
-            os.mkdir('widerface')
-        if not os.path.isdir('widerface/val'):
-            os.mkdir('widerface/val')
-
-        save_path = 'widerface/val'
+        save_path = Path('widerface/val')
     else:
-        save_path = sys.argv[2]
+        save_path = Path(sys.argv[2])
 
-    datas = wider2face(root_path, phase='val')
+    save_path.mkdir(parents=True, exist_ok=True)
+    images_path = save_path.joinpath("images")
+    labels_path = save_path.joinpath("labels")
+    images_path.mkdir(parents=True, exist_ok=True)
+    labels_path.mkdir(parents=True, exist_ok=True)
+
+    datas = wider2face(label_file)
     for idx, data in enumerate(datas.keys()):
         pict_name = os.path.basename(data)
-        out_img = f'{save_path}/{idx}.jpg'
-        out_txt = f'{save_path}/{idx}.txt'
+        out_img = images_path / f'{idx}.jpg'
+        out_txt = labels_path / f'{idx}.txt'
         shutil.copyfile(data, out_img)
         labels = datas[data]
         f = open(out_txt, 'w')

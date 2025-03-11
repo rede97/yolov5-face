@@ -1,0 +1,2 @@
+retinaface_gt_v1.1.zip: https://drive.google.com/file/d/1tU_IjyOwGQfGNUvZGwWWM4SwxKp2PUQ8/view?usp=sharing
+widerface: http://shuoyang1213.me/WIDERFACE/index.html

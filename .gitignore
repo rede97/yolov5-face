@@ -7,3 +7,4 @@ widerface_txt/
 *.pyc
 weights/*
 nohup.out
+test_*
