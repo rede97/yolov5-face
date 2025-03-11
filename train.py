@@ -15,6 +15,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 import torch.utils.data
+from torchinfo import summary
 import yaml
 from torch.cuda import amp
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -42,6 +43,14 @@ except ImportError:
     wandb = None
     logger.info("Install Weights & Biases for experiment logging via 'pip install wandb' (recommended)")
 
+def replace_silu2relu(model):
+    for name, child in model.named_children():
+        if isinstance(child, nn.SiLU):
+            # 替换SiLU为ReLU
+            setattr(model, name, nn.ReLU())
+        else:
+            # 递归调用，继续遍历子模块
+            replace_silu2relu(child)
 
 def train(hyp, opt, device, tb_writer=None, wandb=None):
     logger.info(f'Hyperparameters {hyp}')
@@ -91,6 +100,9 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
         logger.info('Transferred %g/%g items from %s' % (len(state_dict), len(model.state_dict()), weights))  # report
     else:
         model = Model(opt.cfg, ch=3, nc=nc).to(device)  # create
+
+    replace_silu2relu(model)
+    summary(model)
 
     # Freeze
     freeze = []  # parameter names to freeze (full or partial)

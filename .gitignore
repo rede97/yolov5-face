@@ -6,3 +6,4 @@ wandb/
 widerface_txt/
 *.pyc
 weights/*
+nohup.out
