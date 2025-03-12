@@ -82,7 +82,7 @@ if __name__ == '__main__':
         if args.symlink:
             if os.path.exists(out_img):
                 os.remove(out_img)
-            os.symlink(img_path, out_img)
+            os.symlink(img_path.resolve(), out_img)
         else:
             shutil.copyfile(img_path, out_img)
         labels = datas[img_path]

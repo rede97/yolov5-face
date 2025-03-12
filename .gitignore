@@ -1,7 +1,7 @@
 */__pycache__
 widerface
 *.log
-runs/
+runs*
 wandb/
 widerface_txt/
 *.pyc

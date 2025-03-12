@@ -111,6 +111,6 @@ if __name__ == '__main__':
         if args.symlink:
             if os.path.exists(save_img_path):
                 os.remove(save_img_path)
-            os.symlink(img_path, save_img_path)
+            os.symlink(img_path.resolve(), save_img_path)
         else:
             shutil.copyfile(img_path, save_img_path)
