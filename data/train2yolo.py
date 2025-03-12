@@ -45,6 +45,7 @@ if __name__ == '__main__':
                         help='Path to save converted YOLO format data (default: widerface/train)')
     parser.add_argument('-s', '--symlink', action='store_true',
                         help='Use symlinks instead of copying files')
+    parser.add_argument('-c', '--label-correct', action='store_true')
     args = parser.parse_args()
 
     original_path = Path(args.original_path)
@@ -73,7 +74,6 @@ if __name__ == '__main__':
         with open(save_txt_path, "w") as f:
             height, width, _ = img.shape
             labels = aa.words[i]
-            annotations = np.zeros((0, 14))
             if len(labels) == 0:
                 continue
             for idx, label in enumerate(labels):
@@ -101,6 +101,14 @@ if __name__ == '__main__':
                 annotation[0, 11] = label[14] / height  # l3_y
                 annotation[0, 12] = label[16] / width  # l4_x
                 annotation[0, 13] = label[17] / height  # l4_y
+                if args.label_correct:
+                    max_val = np.max(annotation[0, :])
+                    min_val = np.min(annotation[0, :])
+                    if min_val > -1.05 and max_val < 1.05:
+                        annotation = np.clip(annotation, -1.0, 1.0)
+                    else:
+                        print(f"Warning: {save_txt_path}, label[{idx}] = <{min_val}:{max_val}> out of range")
+                        continue
                 str_label = "0 "
                 for i in range(len(annotation[0])):
                     str_label = str_label + " " + str(annotation[0][i])
