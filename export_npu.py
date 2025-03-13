@@ -1,3 +1,12 @@
+from pathlib import Path
+from torchinfo import summary
+import onnx
+from utils.general import set_logging, check_img_size
+from utils.activations import Hardswish, SiLU
+from models.experimental import attempt_load
+import models
+import torch.nn as nn
+import torch
 import argparse
 import sys
 import time
@@ -5,15 +14,6 @@ import numpy as np
 
 sys.path.append("./")  # to run '$ python *.py' files in subdirectories
 
-import torch
-import torch.nn as nn
-import models
-from models.experimental import attempt_load
-from utils.activations import Hardswish, SiLU
-from utils.general import set_logging, check_img_size
-import onnx
-from torchinfo import summary
-from pathlib import Path
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -48,10 +48,9 @@ if __name__ == "__main__":
     model.model[-1].export_x = True
     model.eval()
 
-
     anchors_path = Path(opt.weights).with_name("anchor.txt")
     anchors = model.model[-1].anchors.numpy().reshape((3, 6))
-    np.savetxt(anchors_path, anchors)
+    np.savetxt(anchors_path, anchors, delimiter=",", newline=",")
     print("Save Anchors: ", anchors_path)
 
     summary(model)
@@ -100,7 +99,9 @@ if __name__ == "__main__":
         opset_version=12,
         input_names=input_names,
         # output_names=output_names,
-        dynamic_axes=None,
+        dynamic_axes={'input': {0: 'batch'},
+                      'output': {0: 'batch'}
+                      },
     )
 
     # Checks
@@ -125,7 +126,8 @@ if __name__ == "__main__":
         y_onnx = session.run(output_names, {session.get_inputs()[0].name: im})
         results = y_onnx[0:3]
         for i in range(len(results)):
-            print(f"name: {output_names[i]}, pred's shape[{i}] is {results[i].shape}, origin shape is {y[i].shape}")
+            print(
+                f"name: {output_names[i]}, pred's shape[{i}] is {results[i].shape}, origin shape is {y[i].shape}")
             print(
                 "max(|torch_pred - onnx_pred|) =",
                 abs(y[i].cpu().numpy() - results[i]).max(),

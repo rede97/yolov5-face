@@ -36,6 +36,12 @@ from utils.general import (
 from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized
 
+anchors = np.array([
+    5.000000000000000000e-01, 6.250000000000000000e-01, 1.000000000000000000e+00, 1.250000000000000000e+00, 1.625000000000000000e+00, 2.000000000000000000e+00,
+    1.437500000000000000e+00, 1.812500000000000000e+00, 2.687500000000000000e+00, 3.437500000000000000e+00, 4.562500000000000000e+00, 6.562500000000000000e+00,
+    4.562500000000000000e+00, 6.781250000000000000e+00, 7.218750000000000000e+00, 9.375000000000000000e+00, 1.046875000000000000e+01, 1.353125000000000000e+01,
+]).reshape(3, 3, 2)
+
 
 def load_model(weights, device):
     model = attempt_load(weights, map_location=device)  # load FP32 model
@@ -57,7 +63,7 @@ def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
 
-def post_proc(idx: int, preds: np.ndarray, anchors: np.ndarray):
+def post_proc(idx: int, preds: np.ndarray):
     (bs, na, ny, nx, no) = preds.shape
     yv, xv = np.meshgrid(np.arange(ny), np.arange(nx), indexing="ij")
     grid = np.stack((xv, yv), 2)
@@ -213,10 +219,9 @@ def detect(
         print("input image: ", img.shape)
         # Inference
         outputs = session.run(output_names, {input0.name: img})
-        anchors = outputs[3]
         pred = []
         for idx in range(3):
-            pred.append(post_proc(idx, outputs[idx], anchors))
+            pred.append(post_proc(idx, outputs[idx]))
         pred = np.concatenate(pred, 1)
 
         print(pred.shape)
