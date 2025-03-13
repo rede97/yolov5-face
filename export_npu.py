@@ -1,8 +1,7 @@
 import argparse
 import sys
 import time
-
-import models.yolo
+import numpy as np
 
 sys.path.append("./")  # to run '$ python *.py' files in subdirectories
 
@@ -14,7 +13,7 @@ from utils.activations import Hardswish, SiLU
 from utils.general import set_logging, check_img_size
 import onnx
 from torchinfo import summary
-
+from pathlib import Path
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -48,9 +47,14 @@ if __name__ == "__main__":
     model.model[-1].export_cat = True
     model.model[-1].export_x = True
     model.eval()
-    # summary(model)
-    # labels = model.names
-    # print("labels: ", labels)
+
+
+    anchors_path = Path(opt.weights).with_name("anchor.txt")
+    anchors = model.model[-1].anchors.numpy().reshape((3, 6))
+    np.savetxt(anchors_path, anchors)
+    print("Save Anchors: ", anchors_path)
+
+    summary(model)
 
     # Checks
     gs = int(max(model.stride))  # grid size (max stride)
@@ -59,7 +63,7 @@ if __name__ == "__main__":
     ]  # verify img_size are gs-multiples
 
     # # Input
-    img = torch.zeros(
+    img = torch.rand(
         opt.batch_size, 3, *opt.img_size
     )  # image size(1,3,320,192) iDetection
 
@@ -87,7 +91,7 @@ if __name__ == "__main__":
     f = opt.weights.replace(".pt", ".onnx")  # filename
     model.fuse()  # only for ONNX
     input_names = ["input"]
-    output_names = ["out0", "out1", "out2", "anchors"]
+    output_names = ["out0", "out1", "out2"]
     torch.onnx.export(
         model,
         img,
@@ -119,11 +123,10 @@ if __name__ == "__main__":
         im = img.cpu().numpy().astype(np.float32)  # torch to numpy
         output_names = [o.name for o in session.get_outputs()]
         y_onnx = session.run(output_names, {session.get_inputs()[0].name: im})
-        print("anchors:", y_onnx[3])
         results = y_onnx[0:3]
         for i in range(len(results)):
-            print(f"name: {output_names[i]}, pred's shape[{i}] is ", results[i].shape)
+            print(f"name: {output_names[i]}, pred's shape[{i}] is {results[i].shape}, origin shape is {y[i].shape}")
             print(
                 "max(|torch_pred - onnx_pred|) =",
-                abs(y[0][i].cpu().numpy() - results[i]).max(),
+                abs(y[i].cpu().numpy() - results[i]).max(),
             )
