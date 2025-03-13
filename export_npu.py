@@ -88,20 +88,23 @@ if __name__ == "__main__":
     # ONNX export
     print("\nStarting ONNX export with onnx %s..." % onnx.__version__)
     f = opt.weights.replace(".pt", ".onnx")  # filename
-    model.fuse()  # only for ONNX
+    # model.fuse()  # only for ONNX
     input_names = ["input"]
-    output_names = ["out0", "out1", "out2"]
+    output_names = ["out80", "out40", "out20"]
+    dynamic_axes = {'input': {0: 'batch'},
+                      'out80': {0: 'batch'},
+                      'out40': {0: 'batch'},
+                      'out20': {0: 'batch'},
+                      }
     torch.onnx.export(
         model,
         img,
         f,
         verbose=False,
-        opset_version=12,
+        opset_version=17,
         input_names=input_names,
-        # output_names=output_names,
-        dynamic_axes={'input': {0: 'batch'},
-                      'output': {0: 'batch'}
-                      },
+        output_names=output_names,
+        dynamic_axes=None,
     )
 
     # Checks

@@ -301,7 +301,7 @@ if __name__ == "__main__":
         "--onnx",
         nargs="+",
         type=str,
-        default="weights/yolov5n-face-relu.onnx",
+        default="weights/yolov5n-face-reluquantized.onnx",
         help="model.onnx path(s)",
     )
     parser.add_argument(

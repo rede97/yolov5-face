@@ -8,6 +8,10 @@ from onnxruntime.quantization import CalibrationDataReader
 from quark.onnx.quantization.config.config import Config
 from quark.onnx.quantization.config.custom_config import get_default_config
 from quark.onnx import ModelQuantizer
+from quark.onnx.quantization.config.config import QuantizationConfig
+from onnxruntime.quantization.calibrate import CalibrationMethod
+from onnxruntime.quantization.quant_utils import QuantType, QuantFormat
+from quark.onnx.quant_utils import (PowerOfTwoMethod, VitisQuantType, VitisQuantFormat)
 
 
 def scale_image(img, max_border=640):
@@ -79,16 +83,26 @@ class ImageDataReader(CalibrationDataReader):
         self.enum_data = None
 
 
-# Set up quantization with a specified configuration
-# For example, use "XINT8" for Ryzen AI INT8 quantization
-xint8_config = get_default_config("XINT8")
-quantization_config = Config(global_quant_config=xint8_config)
+if __name__ == "__main__":
+    # Set up quantization with a specified configuration
+    # For example, use "XINT8" for Ryzen AI INT8 quantization
+    xint8_config = QuantizationConfig(calibrate_method=PowerOfTwoMethod.MinMSE,
+                                  activation_type=QuantType.QUInt8,
+                                  weight_type=QuantType.QInt8,
+                                  quant_format=QuantFormat.QDQ,
+                                  enable_npu_cnn=True,
+                                  extra_options={'ActivationSymmetric': True})
+    quantization_config = Config(global_quant_config=xint8_config)
 
 
-input_model_path = "weights/yolov5n-face-relu.onnx"
-quantized_model_path = "weights/yolov5n-face-reluquantized.onnx"
-calib_data_path = "data/widerface/val/images"
-model_input_name = get_model_input_name(input_model_path)
-calib_data_reader = ImageDataReader(calib_data_path, model_input_name, 50)
-quantizer = ModelQuantizer(quantization_config)
-quantizer.quantize_model(input_model_path, quantized_model_path, calib_data_reader)
+    input_model_path = "weights/yolov5n-face-relu.onnx"
+    quantized_model_path = "weights/yolov5n-face-reluquantized.onnx"
+    calib_data_path = "data/widerface/val/images"
+    model_input_name = get_model_input_name(input_model_path)
+    calib_data_reader = ImageDataReader(calib_data_path, model_input_name, 5)
+    quantizer = ModelQuantizer(quantization_config)
+    quantizer.quantize_model(input_model_path, quantized_model_path, calib_data_reader)
+    print("check module")
+    model = onnx.load(quantized_model_path)
+    onnx.checker.check_model(model, True, True)
+    print("done")
