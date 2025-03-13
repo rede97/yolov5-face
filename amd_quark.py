@@ -1,4 +1,37 @@
 import os
+"""
+YOLO Face Detection Model Quantization Script for AMD NPU
+
+This script handles the quantization of YOLO face detection models for AMD NPU deployment.
+Note: 640x640 image inference time >600ms on NPU, indicating potential performance issues.
+
+Key functions:
+    scale_image: Scales input image while maintaining aspect ratio
+    padding_image: Adds padding to make image 640x640
+    get_model_input_name: Gets input tensor name from ONNX model
+    ImageDataReader: Calibration data reader for quantization
+
+The script performs the following:
+1. Reads and preprocesses calibration images
+2. Configures XINT8 quantization for Ryzen AI
+3. Quantizes ONNX model using calibration data
+
+Requirements:
+- OpenCV
+- ONNX Runtime
+- Quark toolkit
+- NumPy
+
+Usage:
+    Run script directly to quantize model with default settings:
+    - Input model: weights/yolov5n-face-relu.onnx
+    - Output model: weights/yolov5n-face-reluquantized.onnx 
+    - Calibration data: data/widerface/val/images
+
+Performance Note:
+    640x640 image inference time currently exceeds 600ms on NPU,
+    which may indicate optimization opportunities or architectural constraints.
+"""
 import cv2
 import onnx
 import copy
@@ -92,3 +125,5 @@ if __name__ == "__main__":
     calib_data_reader = ImageDataReader(calib_data_path, model_input_name, 5)
     quantizer = ModelQuantizer(quantization_config)
     quantizer.quantize_model(input_model_path, quantized_model_path, calib_data_reader)
+
+

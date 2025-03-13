@@ -1,5 +1,7 @@
 ## What's New
 
+* YOLO face detection models for AMD NPU deployment
+
 **2024.04** [ncnn-android-yolov8-face](https://github.com/derronqi/ncnn-android-yolov8-face)
 
 **2023.04** [yolov8-face](https://github.com/derronqi/yolov8-face) (🔥🔥🔥↑) 
