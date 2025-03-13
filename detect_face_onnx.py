@@ -7,11 +7,13 @@ import os
 
 import numpy as np
 import cv2
+import torch
 from numpy import random
 import copy
 import onnxruntime
 import numpy as np
 
+model_stride = np.array([8.0, 16.0, 32.0])
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -35,21 +37,51 @@ from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized
 
 
-def padding_image(img, new_shape = (640, 640)):
+def load_model(weights, device):
+    model = attempt_load(weights, map_location=device)  # load FP32 model
+    return model
+
+def padding_image(img, new_shape=(640, 640)):
     h0, w0 = img.shape[:2]
     assert max(h0, w0) <= 640
     h_pad = (640 - h0) / 2
     w_pad = (640 - w0) / 2
     top, bottom = int(round(h_pad - 0.1)), int(round(h_pad + 0.1))
     left, right = int(round(w_pad - 0.1)), int(round(w_pad + 0.1))
-    return cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT)  # add border
+    return cv2.copyMakeBorder(
+        img, top, bottom, left, right, cv2.BORDER_CONSTANT
+    )  # add border
+
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
-def post_proc(preds: np.ndarray):
 
-    pass
+def post_proc(idx: int, preds: np.ndarray, anchors: np.ndarray):
+    (bs, na, ny, nx, no) = preds.shape
+    yv, xv = np.meshgrid(np.arange(ny), np.arange(nx), indexing="ij")
+    grid = np.stack((xv, yv), 2)
+    grid = np.broadcast_to(grid, (1, na, ny, nx, 2))
+    anchor_grid = np.array(anchors[idx] * model_stride[idx]).view().reshape((1, na, 1, 1, 2))
+    anchor_grid = np.broadcast_to(anchor_grid, (1, na, ny, nx, 2))
+
+    y = np.copy(preds)
+    y[:, :, :, :, 0:5] = sigmoid(preds[:, :, :, :, 0:5])
+    y[:, :, :, :, 15:] = sigmoid(preds[:, :, :, :, 15:])
+    box_xy = (y[:, :, :, :, 0:2] * 2. - 0.5 + grid) * model_stride[idx]
+    box_wh = (y[:, :, :, :, 2:4] * 2) ** 2 * anchor_grid
+
+    landm1 = y[:, :, :, :, 5:7] * anchor_grid + grid * model_stride[idx]  # landmark x1 y1
+    landm2 = y[:, :, :, :, 7:9] * anchor_grid + grid * model_stride[idx]  # landmark x2 y2
+    landm3 = y[:, :, :, :, 9:11] * anchor_grid + grid * model_stride[idx]  # landmark x3 y3
+    landm4 = y[:, :, :, :, 11:13] * anchor_grid + grid * model_stride[idx]  # landmark x4 y4
+    landm5 = y[:, :, :, :, 13:15] * anchor_grid + grid * model_stride[idx]  # landmark x5 y5
+
+    y = np.concatenate((box_xy, box_wh, y[:, :, :, :, 4:5], landm1, landm2, landm3, landm4, landm5, y[:, :, :, :, 15:]), 4)
+    y = y.view().reshape((bs, na * nx * ny,no))
+    return y
+    
+
 
 def scale_coords_landmarks(img1_shape, coords, img0_shape, ratio_pad=None):
     # Rescale coords (xyxy) from img1_shape to img0_shape
@@ -130,7 +162,6 @@ def detect(
     conf_thres = 0.6
     iou_thres = 0.5
     imgsz = (640, 640)
-    model_stride = np.array([8.0, 16.0, 32.0])
 
     input0 = session.get_inputs()[0]
     print(input0.name, input0.shape)
@@ -145,7 +176,7 @@ def detect(
     is_file = Path(source).suffix[1:] in (img_formats + vid_formats)
     is_url = source.lower().startswith(("rtsp://", "rtmp://", "http://", "https://"))
     webcam = source.isnumeric() or source.endswith(".txt") or (is_url and not is_file)
-
+    
     # Dataloader
     if webcam:
         print("loading streams:", source)
@@ -172,10 +203,7 @@ def detect(
             interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
             img0 = cv2.resize(img0, (int(w0 * r), int(h0 * r)), interpolation=interp)
 
-        img = padding_image(img0) 
-        cv2.imwrite("test.jpg", img)
-
-
+        img = padding_image(img0)
         # Convert from w,h,c to c,w,h
         img = img.transpose(2, 0, 1).copy()
 
@@ -184,9 +212,16 @@ def detect(
             img = np.expand_dims(img, axis=0)
         print("input image: ", img.shape)
         # Inference
-        pred = session.run([output_names[0]], {input0.name: img})
-        post_proc(pred)
-        exit(0)
+        outputs = session.run(output_names, {input0.name: img})
+        anchors = outputs[3]
+        pred = []
+        for idx in range(3):
+            pred.append(post_proc(idx, outputs[idx], anchors))
+        pred = np.concatenate(pred, 1)
+
+        print(pred.shape)
+
+        pred = torch.from_numpy(pred)
 
         # Apply NMS
         pred = non_max_suppression_face(pred, conf_thres, iou_thres)

@@ -76,7 +76,7 @@ class Detect(nn.Module):
 
                 z.append(y.view(bs, -1, self.no))
             if self.export_x:
-                return x
+                return [x, self.anchors]
             else:
                 return torch.cat(z, 1)
         
