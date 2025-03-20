@@ -50,8 +50,8 @@ def load_model(weights, device):
 def padding_image(img, new_shape=(640, 640)):
     h0, w0 = img.shape[:2]
     assert max(h0, w0) <= 640
-    h_pad = (640 - h0) / 2
-    w_pad = (640 - w0) / 2
+    h_pad = (new_shape[1] - h0) / 2
+    w_pad = (new_shape[0] - w0) / 2
     top, bottom = int(round(h_pad - 0.1)), int(round(h_pad + 0.1))
     left, right = int(round(w_pad - 0.1)), int(round(w_pad + 0.1))
     return cv2.copyMakeBorder(
@@ -162,9 +162,9 @@ def detect(
     exist_ok,
     save_img,
     view_img,
+    img_size = 640
 ):
     # Load model
-    img_size = 640
     conf_thres = 0.6
     iou_thres = 0.5
     imgsz = (640, 640)
@@ -209,7 +209,7 @@ def detect(
             interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
             img0 = cv2.resize(img0, (int(w0 * r), int(h0 * r)), interpolation=interp)
 
-        img = padding_image(img0)
+        img = padding_image(img0, (img_size, img_size))
         # Convert from w,h,c to c,w,h
         img = img.transpose(2, 0, 1).copy()
 
@@ -218,15 +218,18 @@ def detect(
             img = np.expand_dims(img, axis=0)
         print("input image: ", img.shape)
         # Inference
-        outputs = session.run(output_names, {input0.name: img})
-        pred = []
-        for idx in range(3):
-            pred.append(post_proc(idx, outputs[idx]))
-        pred = np.concatenate(pred, 1)
+        outputs = session.run(output_names, {input0.name: img})[0]
 
-        print(pred.shape)
+        if False:
+            pred = []
+            for idx in range(3):
+                pred.append(post_proc(idx, outputs[idx]))
+            pred = np.concatenate(pred, 1)
 
-        pred = torch.from_numpy(pred)
+            print(pred.shape)
+            pred = torch.from_numpy(pred)
+        else:
+            pred = torch.from_numpy(outputs)
 
         # Apply NMS
         pred = non_max_suppression_face(pred, conf_thres, iou_thres)
@@ -299,7 +302,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--onnx",
-        nargs="+",
+        nargs="?",
         type=str,
         default="weights/yolov5n-face-reluquantized.onnx",
         help="model.onnx path(s)",
@@ -334,4 +337,5 @@ if __name__ == "__main__":
         opt.exist_ok,
         opt.save_img,
         opt.view_img,
+        opt.img_size
     )

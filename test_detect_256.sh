@@ -1,0 +1,1 @@
+python  detect_face_onnx.py --onnx weights/yolov5n-face-relu.onnx  --source data/images/test.jpg  --img-size 256 --save-img
