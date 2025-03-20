@@ -213,10 +213,11 @@ def detect(
         # Convert from w,h,c to c,w,h
         img = img.transpose(2, 0, 1).copy()
 
+        start_time = time.time()
         img = img.astype(np.float32) / 255.0  # uint8 to fp16/32
         if img.ndim == 3:
             img = np.expand_dims(img, axis=0)
-        print("input image: ", img.shape)
+        # print("input image: ", img.shape)
         # Inference
         outputs = session.run(output_names, {input0.name: img})[0]
 
@@ -233,7 +234,9 @@ def detect(
 
         # Apply NMS
         pred = non_max_suppression_face(pred, conf_thres, iou_thres)
-        print(len(pred[0]), "face" if len(pred[0]) == 1 else "faces")
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(len(pred[0]), "face" if len(pred[0]) == 1 else "faces", f"infra: {execution_time*1000:.2f}ms")
 
         # Process detections
         for i, det in enumerate(pred):  # detections per image
@@ -327,7 +330,7 @@ if __name__ == "__main__":
     opt = parser.parse_args()
 
     # model = load_model(opt.weights, device)
-    session = onnxruntime.InferenceSession(opt.onnx, providers=["CPUExecutionProvider"])
+    session = onnxruntime.InferenceSession(opt.onnx, providers=["DmlExecutionProvider", "CPUExecutionProvider"])
 
     detect(
         session,
