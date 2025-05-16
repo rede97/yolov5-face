@@ -16,12 +16,12 @@ def show_results(img: np.ndarray, landmarks: np.ndarray, score: float, tongue: f
         cv2.circle(img, (point_x, point_y), tl + 1, (200, 170, 60), -1)
 
     tf = max(tl - 1, 1)  # font thickness
-    label = "score: {} tongue: {}".format(score, tongue)
+    label = "score: {:.2f} tongue: {:.2f}".format(score, tongue)
 
     cv2.putText(
         img,
         label,
-        (0, 0),
+        (0, 10),
         0,
         tl / 3,
         [225, 255, 255],
